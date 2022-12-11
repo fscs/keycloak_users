@@ -25,3 +25,13 @@ To run the application, simply execute the following command:
 ```bash
 keycloak-user -c <CONFIG_FILE>
 ```
+
+## Building
+To build the application, simply execute the following command:
+
+```bash
+cargo build --release
+```
+
+## License
+This project is licensed under the MIT license. See the [LICENSE](LICENSE) file for more info.
