@@ -5,7 +5,10 @@ use oauth2::reqwest::async_http_client;
 use oauth2::AccessToken;
 use oauth2::ClientId;
 use oauth2::TokenResponse;
+use serde::Deserialize;
+use serde::Serialize;
 use serde_json::json;
+use serde_with::skip_serializing_none;
 use tokio;
 
 fn true_bool() -> bool {
@@ -17,6 +20,8 @@ struct User {
     id: String,
     username: String,
     email: Option<String>,
+    first_name: Option<String>,
+    last_name: Option<String>,
     #[serde(default = "true_bool")]
     enabled: bool,
 }
@@ -32,12 +37,13 @@ struct Config {
     users: Vec<UserConfig>,
 }
 
+#[skip_serializing_none]
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
 struct UserConfig {
     username: String,
-    first_name: String,
-    last_name: String,
-    email: String,
+    first_name: Option<String>,
+    last_name: Option<String>,
+    email: Option<String>,
     roles: Vec<String>,
     #[serde(default = "true_bool")]
     enabled: bool,
@@ -66,6 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let users = keycloak_client.get_all_users().await?;
     // Split users into those in the config and those not in the config
     let users_in_config_and_in_keycloak: Vec<User> = users
+        .into_iter()
         .filter(|user| {
             user_configs
                 .iter()
@@ -179,14 +186,7 @@ impl KeycloakClient {
                     self.base_url, self.realm
                 ))
                 .bearer_auth(&self.token.secret())
-                .json(&json!({
-                    "id": user.username,
-                    "username": user.username,
-                    "firstName": user.first_name,
-                    "lastName": user.last_name,
-                    "email": user.email,
-                    "enabled": true,
-                }))
+                .json(&json!(user))
                 .send()
                 .await?
                 .text()
@@ -368,12 +368,7 @@ impl KeycloakClient {
                 self.base_url, self.realm, user.id
             ))
             .bearer_auth(self.token.secret())
-            .json(&json!({
-                "firstName": user_config.first_name,
-                "lastName": user_config.last_name,
-                "email": user_config.email,
-                "enabled": user_config.enabled,
-            }))
+            .json(&json!(user_config))
             .send()
             .await?;
         Ok(())
