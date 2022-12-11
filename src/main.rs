@@ -1,3 +1,4 @@
+use clap::Parser;
 use log::error;
 use log::info;
 use oauth2::basic::BasicClient;
@@ -13,6 +14,19 @@ use tokio;
 
 fn true_bool() -> bool {
     true
+}
+
+#[derive(Parser)]
+#[command(
+    version,
+    author = "Florian Schubert",
+    about = "A simple CLI to setup Keycloak Users in a realm",
+    name = "keycloak-user-cli",
+    color = clap::ColorChoice::Always
+)]
+struct Args {
+    #[clap(short, long)]
+    config: String,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
@@ -58,8 +72,9 @@ struct Role {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
-    let input = std::fs::read_to_string("config.json")?;
-    let config: Config = serde_json::from_str(&input)?;
+    let args: Args = Args::parse();
+    let config = std::fs::read_to_string(args.config)?;
+    let config: Config = serde_json::from_str(&config)?;
 
     let user_configs = config.users;
     let keycloak_client = KeycloakClient::new(
