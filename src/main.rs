@@ -30,6 +30,8 @@ fn false_bool() -> bool {
 struct Args {
     #[clap(short, long)]
     config: String,
+    #[clap(short, long)]
+    users: String,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
@@ -53,7 +55,6 @@ struct Config {
     #[serde(default = "false_bool")]
     delete_users: bool,
     realm: String,
-    users: Vec<UserConfig>,
 }
 
 #[skip_serializing_none]
@@ -81,7 +82,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = std::fs::read_to_string(args.config)?;
     let config: Config = serde_json::from_str(&config)?;
 
-    let user_configs = config.users;
+    let user_configs = std::fs::read_to_string(args.users)?;
+    let user_configs: Vec<UserConfig> = serde_json::from_str(&user_configs)?;
+
     let keycloak_client = KeycloakClient::new(
         config.keycloak_url,
         config.realm,
@@ -141,7 +144,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .await?;
     } else {
         info!("Disabling users that are not in the config");
-        keycloak_client.disable_users(users_to_disable).await?
+        keycloak_client
+            .disable_users(&users_not_in_config_but_in_keycloak)
+            .await?
     }
     Ok(())
 }
@@ -232,7 +237,7 @@ impl KeycloakClient {
             .await?)
     }
 
-    async fn disable_users(&self, users: Vec<User>) -> Result<(), Box<dyn std::error::Error>> {
+    async fn disable_users(&self, users: &Vec<User>) -> Result<(), Box<dyn std::error::Error>> {
         for user in users {
             info!("Disabling user: {}", user.username);
             let _ = self
@@ -251,7 +256,7 @@ impl KeycloakClient {
         Ok(())
     }
 
-    async fn delete_users(&self, users: Vec<User>) -> Result<(), Box<dyn std::error::Error>> {
+    async fn delete_users(&self, users: &Vec<User>) -> Result<(), Box<dyn std::error::Error>> {
         for user in users {
             info!("Deleting user: {}", user.username);
             let _ = self
@@ -327,6 +332,7 @@ impl KeycloakClient {
         users_keycloak: &Vec<User>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         info!("Updating roles for users");
+        let keycloak_roles = self.get_all_realm_roles().await?;
         for user in users_keycloak {
             let configured_roles = Self::get_roles_in_config(user_configs, user);
             let existing_roles = self.get_realm_roles(user).await?;
@@ -337,7 +343,6 @@ impl KeycloakClient {
             self.update_user_roles(&user.id, &roles_to_add, &roles_to_remove)
                 .await?;
         }
-        let keycloak_roles = self.get_all_realm_roles().await?;
         Ok(())
     }
 
