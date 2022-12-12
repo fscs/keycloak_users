@@ -10,6 +10,7 @@ The configuration file is a simple json file named `config.json`. It contains th
 - `auth_username`: The username to authenticate with (usually admin)
 - `auth_password`: The password to authenticate with
 - `auth_client_id`: The client id to authenticate with (usually admin-cli)
+- `delete_users`: If set to true, users that are not in the configuration file will be deleted
 - `realm`: The realm to manage users in
 - `users`: An array of users to create/update
   - `username`: The username of the user

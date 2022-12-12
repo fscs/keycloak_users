@@ -15,6 +15,9 @@ use tokio;
 fn true_bool() -> bool {
     true
 }
+fn false_bool() -> bool {
+    false
+}
 
 #[derive(Parser)]
 #[command(
@@ -47,6 +50,8 @@ struct Config {
     auth_username: String,
     auth_password: String,
     auth_client_id: String,
+    #[serde(default = "false_bool")]
+    delete_users: bool,
     realm: String,
     users: Vec<UserConfig>,
 }
@@ -127,17 +132,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .update_roles(&user_configs, &users_in_config_and_in_keycloak)
         .await?;
 
-    // Disable users in Keycloak that are not in the config but in Keycloak
-    let users_to_disable: Vec<User> = users_not_in_config_but_in_keycloak
-        .into_iter()
-        .filter(|user| {
-            !user_configs
-                .iter()
-                .any(|config| config.username == user.username)
-        })
-        .collect();
-
-    keycloak_client.disable_users(users_to_disable).await?;
+    // Delete/Disable users in Keycloak that are not in the config but in Keycloak
+    // ,depending on the config
+    if config.delete_users {
+        info!("Deleting users that are not in the config");
+        keycloak_client
+            .delete_users(&users_not_in_config_but_in_keycloak)
+            .await?;
+    } else {
+        info!("Disabling users that are not in the config");
+        keycloak_client.disable_users(users_to_disable).await?
+    }
     Ok(())
 }
 
@@ -212,6 +217,7 @@ impl KeycloakClient {
     }
 
     async fn get_all_users(&self) -> Result<Vec<User>, Box<dyn std::error::Error>> {
+        info!("Getting all users from Keycloak");
         // Create a request
         Ok(self
             .reqwest_client
@@ -228,6 +234,7 @@ impl KeycloakClient {
 
     async fn disable_users(&self, users: Vec<User>) -> Result<(), Box<dyn std::error::Error>> {
         for user in users {
+            info!("Disabling user: {}", user.username);
             let _ = self
                 .reqwest_client
                 .put(format!(
@@ -244,7 +251,27 @@ impl KeycloakClient {
         Ok(())
     }
 
+    async fn delete_users(&self, users: Vec<User>) -> Result<(), Box<dyn std::error::Error>> {
+        for user in users {
+            info!("Deleting user: {}", user.username);
+            let _ = self
+                .reqwest_client
+                .delete(format!(
+                    "{}/admin/realms/{}/users/{}",
+                    self.base_url, self.realm, user.id
+                ))
+                .bearer_auth(self.token.secret())
+                .json(&json!({
+                    "enabled": false
+                }))
+                .send()
+                .await?;
+        }
+        Ok(())
+    }
+
     async fn get_all_realm_roles(&self) -> Result<Vec<Role>, Box<dyn std::error::Error>> {
+        info!("Getting all realm roles from Keycloak");
         Ok(self
             .reqwest_client
             .get(format!(
@@ -259,6 +286,7 @@ impl KeycloakClient {
     }
 
     async fn get_realm_roles(&self, user: &User) -> Result<Vec<Role>, Box<dyn std::error::Error>> {
+        info!("Getting realm roles for user: {}", user.username);
         Ok(self
             .reqwest_client
             .get(format!(
@@ -298,7 +326,7 @@ impl KeycloakClient {
         user_configs: &Vec<UserConfig>,
         users_keycloak: &Vec<User>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let keycloak_roles = self.get_all_realm_roles().await?;
+        info!("Updating roles for users");
         for user in users_keycloak {
             let configured_roles = Self::get_roles_in_config(user_configs, user);
             let existing_roles = self.get_realm_roles(user).await?;
@@ -309,6 +337,7 @@ impl KeycloakClient {
             self.update_user_roles(&user.id, &roles_to_add, &roles_to_remove)
                 .await?;
         }
+        let keycloak_roles = self.get_all_realm_roles().await?;
         Ok(())
     }
 
@@ -318,6 +347,7 @@ impl KeycloakClient {
         roles_to_add: &Vec<Role>,
         roles_to_remove: &Vec<Role>,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        info!("Updating roles for user: {}", user_id);
         if !roles_to_add.is_empty() {
             match self
                 .reqwest_client
