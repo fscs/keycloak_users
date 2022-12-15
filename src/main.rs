@@ -77,7 +77,9 @@ struct Role {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
+    //Set Log Level to Info
+    env_logger::builder().filter_level(log::LevelFilter::Info).init();
+
     let args: Args = Args::parse();
     let config = std::fs::read_to_string(args.config)?;
     let config: Config = serde_json::from_str(&config)?;
@@ -211,7 +213,15 @@ impl KeycloakClient {
                     self.base_url, self.realm
                 ))
                 .bearer_auth(&self.token.secret())
-                .json(&json!(user))
+                .json(&json!(
+                    {
+                        "username": user.username,
+                        "firstName": user.first_name,
+                        "lastName": user.last_name,
+                        "email": user.email,
+                        "enabled": user.enabled,
+                    }
+                ))
                 .send()
                 .await?
                 .text()
@@ -418,7 +428,15 @@ impl KeycloakClient {
                 self.base_url, self.realm, user.id
             ))
             .bearer_auth(self.token.secret())
-            .json(&json!(user_config))
+            .json(&json!(
+                {
+                    "firstName": user_config.first_name,
+                    "lastName": user_config.last_name,
+                    "email": user_config.email,
+                    "enabled": user_config.enabled,
+                    "username": user_config.username
+                }
+            ))
             .send()
             .await?;
         Ok(())
