@@ -2,6 +2,7 @@
 name = "keycloak_users"
 version = "0.1.0"
 edition = "2021"
+description = "A programm to update keycloak users from a json file"
 authors = ["Florian Schubert"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
