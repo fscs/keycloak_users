@@ -1,3 +1,5 @@
 /target
+/result
 config.json
 users.json
+.idea
