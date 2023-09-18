@@ -17,7 +17,7 @@ thiserror = "1.0.43"
 log = "0.4.19"
 env_logger = "0.10.0"
 serde_with = {version="3.0.0", features=["alloc", "macros", "std", "json"]}
-clap = { version = "4.1.11", features = ["derive", "color"] }
+clap = { version = "4.4.3", features = ["derive", "color"] }
 
 [profile.release]
 log = "info"
