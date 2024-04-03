@@ -1,8 +1,8 @@
 [package]
-name = "keycloak_users"
-version = "0.1.0"
+name = "benutzerverwaltungstool"
+version = "0.2.0"
 edition = "2021"
-description = "A programm to update keycloak users from a json file"
+description = "Program um die Benutzer der Fachschaft Informatik zu verwalten"
 authors = ["Florian Schubert"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -18,6 +18,8 @@ log = "0.4.19"
 env_logger = "0.10.0"
 serde_with = {version="3.0.0", features=["alloc", "macros", "std", "json"]}
 clap = { version = "4.1.11", features = ["derive", "color"] }
+anyhow = "1"
+gitlab = "0"
 
 [profile.release]
 log = "info"
