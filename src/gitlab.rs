@@ -63,6 +63,7 @@ pub async fn configure_gitlab(user_configs: &HashMap<String, UserConfig>, config
             api::groups::members::EditGroupMember::builder()
                 .access_level(if user_configs[&user.username].roles.contains(&config.owner_role) {AccessLevel::Owner} else {AccessLevel::Maintainer})
                 .user(user.id)
+                .group(config.group_id)
                 .build()?
                 .query(&client)?;
             anyhow::Ok(())
@@ -73,6 +74,7 @@ pub async fn configure_gitlab(user_configs: &HashMap<String, UserConfig>, config
         .try_for_each(|user| {
             api::groups::members::RemoveGroupMember::builder()
                 .user(user.id)
+                .group(config.group_id)
                 .build()?
                 .query(&client)?;
             anyhow::Ok(())
