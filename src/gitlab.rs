@@ -4,6 +4,7 @@ use crate::UserConfig;
 use gitlab::api::common::AccessLevel;
 use gitlab::Gitlab;
 use gitlab::api::{self, Query};
+use log::info;
 
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
 pub struct GitLabConfig {
@@ -14,7 +15,7 @@ pub struct GitLabConfig {
     maintainer_role: String
 }
 
-#[derive(serde::Deserialize, PartialEq, Eq)]
+#[derive(serde::Deserialize, PartialEq, Eq, Debug)]
 pub struct GitlabUser {
     id: u64,
     username: String
@@ -41,9 +42,14 @@ pub async fn configure_gitlab(user_configs: &HashMap<String, UserConfig>, config
         .into_iter()
         .partition(|m| users.contains(m));
 
+    info!("Users to update {:?}", users_to_update);
+    info!("Users to remove {:?}", users_to_remove);
+
     let users_to_create : Vec<_> = users.into_iter()
         .filter(|u| users_to_update.contains(u))
         .collect();
+
+    info!("Users to create {:?}", users_to_create);
 
     users_to_create
         .iter()
