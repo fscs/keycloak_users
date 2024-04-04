@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
-
-
-
 use crate::UserConfig;
+use gitlab::api::common::AccessLevel;
 use gitlab::Gitlab;
 use gitlab::api::{self, Query};
 
@@ -12,7 +10,8 @@ pub struct GitLabConfig {
     token: String,
     url: String,
     group_id: u64,
-    owner_role: String
+    owner_role: String,
+    maintainer_role: String
 }
 
 #[derive(serde::Deserialize, PartialEq, Eq)]
@@ -24,14 +23,17 @@ pub struct GitlabUser {
 pub async fn configure_gitlab(user_configs: &HashMap<String, UserConfig>, config: &GitLabConfig) -> anyhow::Result<()> {
     let client = Gitlab::new(config.url.to_owned(), config.token.to_owned())?;
 
-    let users = user_configs.iter().map(|user| {
-        api::users::Users::builder()
-          .username(user.0)
-          .build()
-          .unwrap()
-          .query(&client)
-          .unwrap()
-    }).collect::<Vec<GitlabUser>>();
+    let users = user_configs.iter()
+        .filter(|user| user.1.roles.iter().any(|r| r == &config.maintainer_role || r == &config.owner_role))
+        .filter_map(|user| {
+            api::users::Users::builder()
+            .username(user.0)
+            .build()
+            .unwrap()
+            .query(&client)
+            .ok()
+        })
+        .collect::<Vec<GitlabUser>>();
 
     let current_group_members : Vec<GitlabUser> = api::groups::members::GroupMembers::builder().group(config.group_id).build()?.query(&client)?;
 
@@ -49,7 +51,7 @@ pub async fn configure_gitlab(user_configs: &HashMap<String, UserConfig>, config
             api::groups::members::AddGroupMember::builder()
                 .group(config.group_id)
                 .user(user.id)
-                .access_level(api::common::AccessLevel::Maintainer)
+                .access_level(if user_configs[&user.username].roles.contains(&config.owner_role) {AccessLevel::Owner} else {AccessLevel::Maintainer})
                 .build()?
                 .query(&client)?;
             anyhow::Ok(())
@@ -59,7 +61,7 @@ pub async fn configure_gitlab(user_configs: &HashMap<String, UserConfig>, config
         .iter()
         .try_for_each(|user| {
             api::groups::members::EditGroupMember::builder()
-                .access_level(api::common::AccessLevel::Maintainer)
+                .access_level(if user_configs[&user.username].roles.contains(&config.owner_role) {AccessLevel::Owner} else {AccessLevel::Maintainer})
                 .user(user.id)
                 .build()?
                 .query(&client)?;
