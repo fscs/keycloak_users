@@ -1,10 +1,13 @@
+use std::collections::HashMap;
+
 use clap::Parser;
+use gitlab::configure_gitlab;
 use keycloak::{configure_keycloak_users, KeycloakConfig};
 use serde_with::skip_serializing_none;
 use tokio;
 
 mod keycloak;
-
+mod gitlab;
 fn true_bool() -> bool {
     true
 }
@@ -32,6 +35,7 @@ struct Args {
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
 struct Config {
     keycloak: KeycloakConfig,
+    gitlab: gitlab::GitLabConfig,
     auth_client_id: String,
     #[serde(default = "false_bool")]
     delete_users: bool,
@@ -41,7 +45,6 @@ struct Config {
 #[skip_serializing_none]
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
 pub(crate) struct UserConfig {
-    username: String,
     first_name: Option<String>,
     last_name: Option<String>,
     email: Option<String>,
@@ -49,8 +52,6 @@ pub(crate) struct UserConfig {
     #[serde(default = "true_bool")]
     enabled: bool,
 }
-
-
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -62,8 +63,10 @@ async fn main() -> anyhow::Result<()> {
     let config: Config = serde_json::from_str(&config)?;
 
     let user_configs = std::fs::read_to_string(args.users)?;
-    let user_configs: Vec<UserConfig> = serde_json::from_str(&user_configs)?;
+    let user_configs: HashMap<String, UserConfig> = serde_json::from_str(&user_configs)?;
 
     configure_keycloak_users(&user_configs, &config.keycloak).await?;
+    configure_gitlab(&user_configs, &config.gitlab).await?;
+
     Ok(())
 }

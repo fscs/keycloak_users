@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use oauth2::basic::BasicClient;
 use oauth2::reqwest::async_http_client;
 use oauth2::AccessToken;
@@ -43,7 +45,7 @@ struct KeycloakRole {
     name: String,
 }
 
-pub async fn configure_keycloak_users(users: &Vec<UserConfig>, keycloak_config: &KeycloakConfig) -> anyhow::Result<()> {
+pub async fn configure_keycloak_users(users: &HashMap<String, UserConfig>, keycloak_config: &KeycloakConfig) -> anyhow::Result<()> {
     let client = KeycloakClient::new(
         keycloak_config.url.clone(),
         keycloak_config.realm.clone(),
@@ -54,20 +56,22 @@ pub async fn configure_keycloak_users(users: &Vec<UserConfig>, keycloak_config: 
 
     let keycloak_users = client.get_all_users().await?;
 
-    let users_to_create = users.iter().filter(|user| {
-        !keycloak_users.iter().any(|keycloak_user| keycloak_user.username == user.username)
-    }).collect::<Vec<_>>();
+    let users_to_create = users.iter()
+        .filter(|user| keycloak_users.iter().any(|k| *user.0 == k.username))
+        .collect::<HashMap<_, _>>();
+
     client.create_users(&users_to_create).await?;
 
 
     let users_to_update = keycloak_users.iter().filter(|keycloak_user| {
-        users.iter().any(|user| user.username == keycloak_user.username)
+        users.contains_key(&keycloak_user.username)
     }).collect::<Vec<_>>();
-    client.update_users(&users_to_update, users).await?;
-    client.update_roles(&users_to_update, users).await?;
+
+    client.update_users(&users_to_update, &users).await?;
+    client.update_roles(&users_to_update, &users).await?;
 
     let users_to_delete = keycloak_users.iter().filter(|keycloak_user| {
-        !users.iter().any(|user| user.username == keycloak_user.username)
+        !users.contains_key(&keycloak_user.username)
     }).collect::<Vec<_>>();
     client.delete_users(&users_to_delete).await?;
 
@@ -119,7 +123,7 @@ impl KeycloakClient {
 
     async fn create_users(
         &self,
-        users: &Vec<&UserConfig>,
+        users: &HashMap<&String, &UserConfig>,
     ) -> anyhow::Result<()> {
         for user in users {
             let user = self
@@ -131,11 +135,11 @@ impl KeycloakClient {
                 .bearer_auth(&self.token.secret())
                 .json(&json!(
                     {
-                        "username": user.username,
-                        "firstName": user.first_name,
-                        "lastName": user.last_name,
-                        "email": user.email,
-                        "enabled": user.enabled,
+                        "username": user.0,
+                        "firstName": user.1.first_name,
+                        "lastName": user.1.last_name,
+                        "email": user.1.email,
+                        "enabled": user.1.enabled,
                     }
                 ))
                 .send()
@@ -255,12 +259,12 @@ impl KeycloakClient {
     async fn update_roles(
         &self,
         users_keycloak: &Vec<&KeycloakUser>,
-        user_configs: &Vec<UserConfig>,
+        user_configs: &HashMap<String, UserConfig>,
     ) -> anyhow::Result<()> {
         info!("Updating roles for users");
         let keycloak_roles = self.get_all_realm_roles().await?;
         for user in users_keycloak {
-            let configured_roles = Self::get_roles_in_config(user_configs, user);
+            let configured_roles = user_configs[&user.username].roles.clone();
             let existing_roles = self.get_realm_roles(user).await?;
             let roles_to_add =
                 Self::roles_to_add(&configured_roles, &keycloak_roles, &existing_roles);
@@ -310,25 +314,14 @@ impl KeycloakClient {
         Ok(())
     }
 
-    fn get_roles_in_config(user_configs: &Vec<UserConfig>, user: &KeycloakUser) -> Vec<String> {
-        user_configs
-            .iter()
-            .find(|config| config.username == user.username)
-            .map(|config| config.roles.clone())
-            .unwrap()
-    }
-
     async fn update_users(
         &self,
         users: &Vec<&KeycloakUser>,
-        user_configs: &Vec<UserConfig>,
+        user_configs: &HashMap<String, UserConfig>,
     ) -> anyhow::Result<()> {
         for user in users {
-            let user_config = user_configs
-                .iter()
-                .find(|config| config.username == user.username)
-                .unwrap();
-            self.update_user(user, user_config).await?;
+            let user_config = &user_configs[&user.username];
+            self.update_user(&user, &user_config).await?;
         }
         Ok(())
     }
@@ -350,7 +343,7 @@ impl KeycloakClient {
                     "lastName": user_config.last_name,
                     "email": user_config.email,
                     "enabled": user_config.enabled,
-                    "username": user_config.username
+                    "username": user.username
                 }
             ))
             .send()
