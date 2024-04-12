@@ -57,7 +57,7 @@ pub async fn configure_keycloak_users(users: &HashMap<String, UserConfig>, keycl
     let keycloak_users = client.get_all_users().await?;
 
     let users_to_create = users.iter()
-        .filter(|user| keycloak_users.iter().any(|k| *user.0 == k.username))
+        .filter(|user| !keycloak_users.iter().any(|k| *user.0 == k.username))
         .collect::<HashMap<_, _>>();
 
     client.create_users(&users_to_create).await?;
