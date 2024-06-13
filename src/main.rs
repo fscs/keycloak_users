@@ -34,8 +34,8 @@ struct Args {
 
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
 struct Config {
-    keycloak: KeycloakConfig,
-    gitlab: gitlab::GitLabConfig,
+    keycloak: Option<KeycloakConfig>,
+    gitlab: Option<gitlab::GitLabConfig>,
     auth_client_id: String,
     #[serde(default = "false_bool")]
     delete_users: bool,
@@ -65,8 +65,13 @@ async fn main() -> anyhow::Result<()> {
     let user_configs = std::fs::read_to_string(args.users)?;
     let user_configs: HashMap<String, UserConfig> = serde_json::from_str(&user_configs)?;
 
-    configure_keycloak_users(&user_configs, &config.keycloak).await?;
-    configure_gitlab(&user_configs, &config.gitlab).await?;
+    if let Some(keycloak_config) = &config.keycloak {
+      configure_keycloak_users(&user_configs, &keycloak_config).await?;
+    }
+
+    if let Some(gitlab_config) = &config.gitlab {
+      configure_gitlab(&user_configs, gitlab_config).await?;
+    }
 
     Ok(())
 }
