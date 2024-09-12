@@ -76,7 +76,7 @@ pub async fn configure_authentik_users(
 
     let users_to_update = authentik_users
         .iter()
-        .filter(|authentik_user| users.contains_key(&keycloak_user.username))
+        .filter(|authentik_user| users.contains_key(&authentik_user.username))
         .collect::<Vec<_>>();
 
     client.update_users(&users_to_update, &users).await?;
@@ -84,7 +84,7 @@ pub async fn configure_authentik_users(
 
     let users_to_delete = authentik_users
         .iter()
-        .filter(|authentik_user| !users.contains_key(&keycloak_user.username))
+        .filter(|authentik_user| !users.contains_key(&authentik_user.username))
         .collect::<Vec<_>>();
     client.delete_users(&users_to_delete).await?;
 
