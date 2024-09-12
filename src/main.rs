@@ -1,13 +1,15 @@
 use std::collections::HashMap;
 
+use authentik::{configure_authentik_users, AuthentikConfig};
 use clap::Parser;
 use gitlab::configure_gitlab;
 use keycloak::{configure_keycloak_users, KeycloakConfig};
 use serde_with::skip_serializing_none;
 use tokio;
 
-mod keycloak;
+mod authentik;
 mod gitlab;
+mod keycloak;
 fn true_bool() -> bool {
     true
 }
@@ -30,11 +32,10 @@ struct Args {
     users: String,
 }
 
-
-
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
 struct Config {
     keycloak: Option<KeycloakConfig>,
+    authentik: Option<AuthentikConfig>,
     gitlab: Option<gitlab::GitLabConfig>,
     auth_client_id: String,
     #[serde(default = "false_bool")]
@@ -56,7 +57,9 @@ pub(crate) struct UserConfig {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     //Set Log Level to Info
-    env_logger::builder().filter_level(log::LevelFilter::Info).init();
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
+        .init();
 
     let args: Args = Args::parse();
     let config = std::fs::read_to_string(args.config)?;
@@ -66,11 +69,15 @@ async fn main() -> anyhow::Result<()> {
     let user_configs: HashMap<String, UserConfig> = serde_json::from_str(&user_configs)?;
 
     if let Some(keycloak_config) = &config.keycloak {
-      configure_keycloak_users(&user_configs, &keycloak_config).await?;
+        configure_keycloak_users(&user_configs, &keycloak_config).await?;
+    }
+
+    if let Some(authentik_config) = &config.authentik {
+        configure_authentik_users(&user_configs, &authentik_config).await?;
     }
 
     if let Some(gitlab_config) = &config.gitlab {
-      configure_gitlab(&user_configs, gitlab_config).await?;
+        configure_gitlab(&user_configs, gitlab_config).await?;
     }
 
     Ok(())
