@@ -6,10 +6,12 @@ use gitlab::configure_gitlab;
 use keycloak::{configure_keycloak_users, KeycloakConfig};
 use serde_with::skip_serializing_none;
 use tokio;
+use website::{configure_website_users, WebsiteConfig};
 
 mod authentik;
 mod gitlab;
 mod keycloak;
+mod website;
 fn true_bool() -> bool {
     true
 }
@@ -36,6 +38,7 @@ struct Args {
 struct Config {
     keycloak: Option<KeycloakConfig>,
     authentik: Option<AuthentikConfig>,
+    website: Option<WebsiteConfig>,
     gitlab: Option<gitlab::GitLabConfig>,
     auth_client_id: String,
     #[serde(default = "false_bool")]
@@ -78,6 +81,10 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(gitlab_config) = &config.gitlab {
         configure_gitlab(&user_configs, gitlab_config).await?;
+    }
+
+    if let Some(website_config) = &config.website {
+        configure_website_users(&user_configs, website_config).await?;
     }
 
     Ok(())

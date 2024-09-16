@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use anyhow::Error;
 use log::*;
 use oauth2::basic::BasicClient;
 use oauth2::reqwest::async_http_client;
@@ -11,6 +12,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::true_bool;
+use crate::website::WebsiteConfig;
 use crate::UserConfig;
 
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
@@ -41,9 +43,9 @@ struct AuthentikUser {
     groups_obj: Vec<AuthentikRole>,
 }
 
-struct AuthentikClient {
+pub struct AuthentikClient {
     base_url: String,
-    token: AccessToken,
+    pub token: AccessToken,
     reqwest_client: reqwest::Client,
 }
 
