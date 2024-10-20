@@ -4,12 +4,14 @@ use authentik::{configure_authentik_users, AuthentikConfig};
 use clap::Parser;
 use gitlab::configure_gitlab;
 use keycloak::{configure_keycloak_users, KeycloakConfig};
+use matrix::configure_matrix;
 use serde_with::skip_serializing_none;
 use tokio;
 
 mod authentik;
 mod gitlab;
 mod keycloak;
+mod matrix;
 fn true_bool() -> bool {
     true
 }
@@ -37,10 +39,7 @@ struct Config {
     keycloak: Option<KeycloakConfig>,
     authentik: Option<AuthentikConfig>,
     gitlab: Option<gitlab::GitLabConfig>,
-    auth_client_id: String,
-    #[serde(default = "false_bool")]
-    delete_users: bool,
-    realm: String,
+    matrix: Option<matrix::MatrixConfig>,
 }
 
 #[skip_serializing_none]
@@ -49,6 +48,7 @@ pub(crate) struct UserConfig {
     first_name: Option<String>,
     last_name: Option<String>,
     email: Option<String>,
+    matrix_id: Option<String>,
     roles: Vec<String>,
     #[serde(default = "true_bool")]
     enabled: bool,
@@ -78,6 +78,10 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(gitlab_config) = &config.gitlab {
         configure_gitlab(&user_configs, gitlab_config).await?;
+    }
+
+    if let Some(matrix_config) = &config.matrix {
+        configure_matrix(&user_configs, matrix_config).await?;
     }
 
     Ok(())
