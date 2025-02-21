@@ -170,12 +170,17 @@ impl AuthentikClient {
     async fn delete_users(&self, users: &Vec<&AuthentikUser>) -> anyhow::Result<()> {
         for user in users {
             info!("Deleting user: {}", user.username);
-            let _ = self
+            let res = self
                 .reqwest_client
                 .delete(format!("{}/api/v3//core/users/{}/", self.base_url, user.pk))
                 .bearer_auth(self.token.secret())
                 .send()
                 .await?;
+            info!(
+                "sending Request to: {}",
+                format!("{}/api/v3//core/users/{}/", self.base_url, user.pk)
+            );
+            info!("Deleted user: {}", res.status());
         }
         Ok(())
     }
