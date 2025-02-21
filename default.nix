@@ -1,18 +1,20 @@
 # default.nix
-{ lib
-, naersk
-, stdenv
-, clangStdenv
-, hostPlatform
-, targetPlatform
-, pkg-config
-, libiconv
-, openssl
-, rustfmt
-, cargo
-, rustc
-, llvmPackages # Optional
-  # , protobuf     # Optional
+{
+  lib,
+  naersk,
+  stdenv,
+  clangStdenv,
+  hostPlatform,
+  targetPlatform,
+  pkg-config,
+  libiconv,
+  openssl,
+  rustfmt,
+  cargo,
+  rustc,
+  sqlite,
+  llvmPackages, # Optional
+# , protobuf     # Optional
 }:
 
 let
@@ -29,8 +31,12 @@ naersk.lib."${targetPlatform.system}".buildPackage rec {
     cargo
     rustc
     libiconv
+    sqlite
   ];
-  checkInputs = [ cargo rustc ];
+  checkInputs = [
+    cargo
+    rustc
+  ];
 
   doCheck = true;
   CARGO_BUILD_INCREMENTAL = "false";
@@ -56,4 +62,3 @@ naersk.lib."${targetPlatform.system}".buildPackage rec {
     maintainers = with maintainers; [ ];
   };
 }
-
