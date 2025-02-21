@@ -172,7 +172,7 @@ impl AuthentikClient {
             info!("Deleting user: {}", user.username);
             let res = self
                 .reqwest_client
-                .delete(format!("{}/api/v3//core/users/{}/", self.base_url, user.pk))
+                .delete(format!("{}/api/v3/core/users/{}/", self.base_url, user.pk))
                 .bearer_auth(self.token.secret())
                 .send()
                 .await?;
