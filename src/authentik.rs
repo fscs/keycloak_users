@@ -30,7 +30,7 @@ pub struct AuthentikResponse2 {
     pub results: Vec<AuthentikRole>,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 struct AuthentikUser {
     pk: i64,
     username: String,
@@ -66,6 +66,16 @@ pub async fn configure_authentik_users(
     .await?;
 
     let authentik_users = client.get_all_users().await?;
+    let inphima_users: Vec<_> = authentik_users
+        .iter()
+        .filter(|authentik_user| {
+            authentik_user
+                .groups_obj
+                .iter()
+                .any(|obj| obj.name == "FS_Rat_InPhiMa")
+        })
+        .map(Clone::clone)
+        .collect();
 
     let users_to_create = users
         .iter()
@@ -74,7 +84,7 @@ pub async fn configure_authentik_users(
 
     client.create_users(&users_to_create).await?;
 
-    let users_to_update = authentik_users
+    let users_to_update = inphima_users
         .iter()
         .filter(|authentik_user| users.contains_key(&authentik_user.username))
         .collect::<Vec<_>>();
@@ -82,7 +92,7 @@ pub async fn configure_authentik_users(
     client.update_users(&users_to_update, &users).await?;
     client.update_roles(&users_to_update, &users).await?;
 
-    let users_to_delete = authentik_users
+    let users_to_delete = inphima_users
         .iter()
         .filter(|authentik_user| !users.contains_key(&authentik_user.username))
         .collect::<Vec<_>>();

@@ -72,6 +72,8 @@
           buildInputs = with pkgs; [
             rustfmt
             nixpkgs-fmt
+            cargo
+            rustc
           ];
           LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
         });
